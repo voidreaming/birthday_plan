@@ -18,11 +18,12 @@ if 'stage' not in st.session_state:
 if 'birthday' not in st.session_state:
     st.session_state.birthday = datetime.now().date()
 
+#contributed by 李澍
 def calculate_days_until_next_birthday(birthday, today):
     next_year = today.year + (today >= birthday.replace(year=today.year))
     next_birthday = birthday.replace(year=next_year)
     return (next_birthday - today).days
-
+#contributed by 李澍
 def adjust_to_nearest_saturday(plan_date):
     if plan_date.weekday() in [0, 1]:  # Monday or Tuesday
         adjusted_date = plan_date - timedelta(days=plan_date.weekday() + 1)
@@ -35,6 +36,7 @@ def adjust_to_nearest_saturday(plan_date):
         adjustment_message = "It's already a weekend, no adjustment needed."
     return adjusted_date, adjustment_message
 
+#contributed by 汪守菊
 def main():
     today = datetime.now().date()
     st.title("🎉 Birthday Party Planner")
