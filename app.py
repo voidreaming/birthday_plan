@@ -26,7 +26,7 @@ def calculate_days_until_next_birthday(birthday, today):
 #contributed by 李澍
 def adjust_to_nearest_saturday(plan_date):
     if plan_date.weekday() in [0, 1]:  # Monday or Tuesday
-        adjusted_date = plan_date - timedelta(days=plan_date.weekday() + 2)
+        adjusted_date = plan_date - timedelta(days=plan_date.weekday() + 1)
         adjustment_message = "It's a weekday, so we've adjusted to the previous Saturday."
     elif 2 <= plan_date.weekday() <= 4:  # Wednesday to Friday
         adjusted_date = plan_date + timedelta(days=5 - plan_date.weekday())
@@ -74,18 +74,6 @@ def main():
             st.session_state.stage = 2
 
     elif st.session_state.stage == 2:  # Changed to elif
-        # days_until_birthday = calculate_days_until_next_birthday(st.session_state.birthday, today)
-        # st.write(f"Days until your next birthday:", days_until_birthday)
-        # days_in_advance = st.number_input("Enter how many days in advance you want to plan the party ⏳:", min_value=1, value=30, step=1)
-        # planned_day = st.session_state.birthday.replace(year=today.year if today <= st.session_state.birthday else today.year + 1) - timedelta(days=days_in_advance)
-        # planned_date, adjustment_message= adjust_to_nearest_saturday(planned_day)
-        #  #add message
-        # st.write(f"📅 Your initially planned date is: {planned_day.strftime('%A, %Y-%m-%d')}")
-        # st.write(f"🔧 {adjustment_message}")
-        # st.write(f"📅 Your adjusted planning date is: {planned_date.strftime('%A, %Y-%m-%d')}")
-        # if st.button('Confirm Plan Date ✅'):
-        #     st.session_state.planned_date = planned_date
-        #     st.session_state.stage = 3
         days_in_advance = st.number_input("⏳ Enter how many days in advance you want to plan the party:", min_value=0, value=30)
         planned_day = st.session_state['birthday'].replace(year=today.year if today <= st.session_state['birthday'] else today.year + 1) - timedelta(days=days_in_advance)
         planned_date, adjustment_message = adjust_to_nearest_saturday(planned_day)

@@ -5,6 +5,9 @@ from datetime import datetime, timedelta
 if 'people' not in st.session_state or not isinstance(st.session_state.people, dict):
     st.session_state.people = {}
 
+if 'planning_done' not in st.session_state:
+    st.session_state.planning_done = False
+
 def calculate_days_until_next_birthday(birthday, today):
     """Calculate days until the next birthday."""
     next_year = today.year + (today >= birthday.replace(year=today.year))
@@ -30,40 +33,51 @@ def adjust_to_nearest_saturday(plan_date):
 def main():
     st.title("🎉 Birthday Party Planner")
     
-    with st.form("person_form"):
-        name = st.text_input("Name").strip()
-        relationship = st.selectbox("Relationship", ["Father", "Mother", "Grandfather", "Grandmother", "Girlfriend", "Classmate", "Friend", "Other"])
-        birthday = st.date_input("Birthday")
-        submit_button = st.form_submit_button(label="Save or Update")
+    if not st.session_state.planning_done:
+        with st.form("person_form"):
+            name = st.text_input("Name").strip()
+            relationship = st.selectbox("Relationship", ["Father", "Mother", "Grandfather", "Grandmother", "Girlfriend", "Classmate", "Friend", "Other"])
+            birthday = st.date_input("Birthday")
+            submit_button = st.form_submit_button(label="Save or Update")
 
-    if submit_button and name:
-        st.session_state.people[name] = {
-            "relationship": relationship,
-            "birthday": birthday,
-        }
-        st.success(f"{name}'s information saved/updated!")
+        if submit_button and name:
+            st.session_state.people[name] = {
+                "relationship": relationship,
+                "birthday": birthday,
+                "planning_date": None,  # Placeholder for planning date
+            }
+            st.success(f"{name}'s information saved/updated!")
 
-    if st.session_state.people:
-        selected_person = st.selectbox("Select a person to plan a birthday for", options=list(st.session_state.people.keys()))
-        
-        if selected_person:
-            person_info = st.session_state.people[selected_person]
-            st.write(f"Name: {selected_person}, Relationship: {person_info['relationship']}, Birthday: {person_info['birthday'].strftime('%Y-%m-%d')}")
-            
-            today = datetime.now().date()
-            next_birthday = person_info['birthday'].replace(year=today.year if today <= person_info['birthday'] else today.year + 1)
-            days_until_next_birthday = (next_birthday - today).days
-            st.write(f"Days until next birthday: {days_until_next_birthday} days")
+        if st.session_state.people:
+            selected_person = st.selectbox("Select a person to plan a birthday for", options=list(st.session_state.people.keys()))
 
-            days_in_advance = st.number_input("Days in advance to plan the party", min_value=0, value=30)
-            initial_plan_date = next_birthday - timedelta(days=days_in_advance)
-            adjusted_date, message = adjust_to_nearest_saturday(initial_plan_date)
-            st.write(message)
-            st.write(f"Planning date: {adjusted_date.strftime('%A, %Y-%m-%d')}")
+            if selected_person:
+                person_info = st.session_state.people[selected_person]
+                st.write(f"Name: {selected_person}, Relationship: {person_info['relationship']}, Birthday: {person_info['birthday'].strftime('%Y-%m-%d')}")
 
-    if st.button("Show All Plans"):
+                today = datetime.now().date()
+                next_birthday = person_info['birthday'].replace(year=today.year if today <= person_info['birthday'] else today.year + 1)
+                days_until_next_birthday = (next_birthday - today).days
+                st.write(f"Days until next birthday: {days_until_next_birthday} days")
+
+                days_in_advance = st.number_input("Days in advance to plan the party", min_value=0, value=30)
+                initial_plan_date = next_birthday - timedelta(days=days_in_advance)
+                adjusted_date, message = adjust_to_nearest_saturday(initial_plan_date)
+                st.write(message)
+                st.write(f"Planning date: {adjusted_date.strftime('%A, %Y-%m-%d')}")
+
+                if st.button("Confirm Planning Date"):
+                    st.session_state.people[selected_person]["planning_date"] = adjusted_date
+                    st.success(f"Planning date for {selected_person} confirmed!")
+
+        if st.button("Finish Planning"):
+            st.session_state.planning_done = True
+
+    if st.session_state.planning_done:
         st.subheader("All Birthday Plans:")
         for person_name, details in st.session_state.people.items():
-            st.write(f"{person_name} ({details['relationship']}): Birthday on {details['birthday'].strftime('%Y-%m-%d')}")
+            st.write(f"{person_name} ({details['relationship']}): Birthday on {details['birthday'].strftime('%Y-%m-%d')}, Planning date: {details.get('planning_date', 'Not Set').strftime('%Y-%m-%d') if details.get('planning_date') else 'Not Set'}")
+        if st.button("Plan Another Birthday"):
+            st.session_state.planning_done = False
 
 main()
