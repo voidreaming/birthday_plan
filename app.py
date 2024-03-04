@@ -26,7 +26,7 @@ def calculate_days_until_next_birthday(birthday, today):
 #contributed by 李澍
 def adjust_to_nearest_saturday(plan_date):
     if plan_date.weekday() in [0, 1]:  # Monday or Tuesday
-        adjusted_date = plan_date - timedelta(days=plan_date.weekday() + 1)
+        adjusted_date = plan_date - timedelta(days=plan_date.weekday() + 2)
         adjustment_message = "It's a weekday, so we've adjusted to the previous Saturday."
     elif 2 <= plan_date.weekday() <= 4:  # Wednesday to Friday
         adjusted_date = plan_date + timedelta(days=5 - plan_date.weekday())
