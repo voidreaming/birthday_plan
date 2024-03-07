@@ -1,17 +1,39 @@
 import streamlit as st
 from datetime import datetime, timedelta
+import pandas as pd
 
-# Ensure 'people', 'current_index', and 'planning_done' are initialized
-if 'people' not in st.session_state:
-    st.session_state.people = {}
-if 'current_index' not in st.session_state:
-    st.session_state.current_index = 0
 if 'data_done' not in st.session_state:
     st.session_state.data_done = False
 if 'planning_done' not in st.session_state:
-    # planing_date = datetime.now().date()
     st.session_state.planning_done = False
+if 'end_done' not in st.session_state:
+    st.session_state.end_done = False
 
+# Part 1: Define a function to input and save information about family members and friends
+def input_family_and_friends():
+    st.markdown("## 📝 Family Members and Friends Information")
+    num_people = st.number_input("👥 Enter the number of family members and friends:", min_value=0, step=1, value=0)
+    today = datetime.now().date()
+    people_info = []
+
+    if num_people > 0:
+        st.markdown("----")  # Add a divider for visual separation
+
+    for i in range(num_people):
+        with st.container():  # Use a container for each person's inputs to group them visually
+            st.markdown(f"### Person {i+1}")
+            cols = st.columns([3, 2, 3])  # Adjust column ratios as needed
+            name = cols[0].text_input("👤 Name:", key=f"name_{i}")
+            relationship = cols[1].selectbox("🤝 Relationship:", ["Father", "Mother", "Grandfather", "Grandmother", "Spouse", "Partner", "Sibling", "Friend", "Other"], key=f"relationship_{i}")
+            birthday = cols[2].date_input("🎂 Birthday:", min_value=datetime(today.year - 100, 1, 1), max_value=datetime(today.year + 1, 12, 31), value=datetime(today.year, today.month, today.day), key=f"birthday_{i}")
+            people_info.append({"Name": name, "Relationship": relationship, "Birth Date": birthday})
+            st.markdown("---")  # Add a subtle divider between inputs for different people
+
+    if st.button("💾 Save"):
+        df = pd.DataFrame(people_info)
+        st.session_state['df_people'] = df
+        st.success("📥 Information Saved Successfully!")
+        st.dataframe(df)  # Display the dataframe in a more compact way
 
 def is_within_holiday_period(plan_date):
     if (plan_date.month == 5 and 1 <= plan_date.day <= 3) or (plan_date.month == 10 and 1 <= plan_date.day <= 7):
@@ -19,108 +41,100 @@ def is_within_holiday_period(plan_date):
     return False
 
 def adjust_to_nearest_saturday(plan_date):
-    # If the date is within the holiday period, no adjustment is needed
     if is_within_holiday_period(plan_date):
-        adjustment_message = "It's a holiday period, so no adjustment is made."
-        return plan_date, adjustment_message
-    
-    # Adjust to the nearest Saturday if not within the holiday period
+        return plan_date, "It's a holiday period, so no adjustment is made."
     if plan_date.weekday() in [0, 1]:  # Monday or Tuesday
         adjusted_date = plan_date - timedelta(days=plan_date.weekday() + 1)
-        adjustment_message = "It's a weekday, so we've adjusted to the previous Saturday."
+        adjustment_message = "Adjusted to the previous Saturday."
     elif 2 <= plan_date.weekday() <= 4:  # Wednesday to Friday
         adjusted_date = plan_date + timedelta(days=5 - plan_date.weekday())
-        adjustment_message = "It's a weekday, so we've adjusted to the next Saturday."
+        adjustment_message = "Adjusted to the next Saturday."
     else:
         adjusted_date = plan_date
-        adjustment_message = "It's already a weekend, no adjustment needed."
+        adjustment_message = "No adjustment needed, it's already a weekend."
     return adjusted_date, adjustment_message
 
 def calculate_days_until_next_birthday(birthday):
-    """Calculate days until the next birthday."""
     today = datetime.now().date()
     next_birthday = birthday.replace(year=today.year if today <= birthday else today.year + 1)
     return (next_birthday - today).days, next_birthday
 
-# def adjust_to_nearest_saturday(plan_date):
-#     """Adjust to the nearest Saturday, unless within specified holiday periods."""
-#     if (plan_date.month == 5 and 1 <= plan_date.day <= 3) or (plan_date.month == 10 and 1 <= plan_date.day <= 7):
-#         return plan_date, "It's a holiday period, so no adjustment is made."
-#     # Adjustment logic as previously defined
+# Part 2: Planning part
+def planning_part(df_people):
+    st.markdown("## 🎉 Birthday Party Planning")
+    selected_person = st.selectbox("👤 Select a person:", df_people["Name"])
 
-# Step 1: Data Entry
-def data_entry():
-    with st.form("person_form"):
-        st.subheader("Enter Friend or Family Member's Details")
-        name = st.text_input("Name").strip()
-        relationship = st.selectbox("Relationship", ["Father", "Mother", "Grandfather", "Grandmother", "Girlfriend", "Classmate", "Friend", "Other"])
-        birthday = st.date_input("Date of Birth")
-        submit_button = st.form_submit_button("Save")
-    if submit_button:
-        print("enter if")
-        st.session_state.people[name] = {"relationship": relationship, "birthday": birthday}
-        st.success(f"Saved {name}'s information!")
+    person_info = df_people[df_people["Name"] == selected_person].iloc[0]
+    birthday = person_info["Birth Date"]
+
+    idx = df_people.index[df_people['Name'] == selected_person].tolist()[0]
+    st.markdown(f"### 📅 Birthday Information for {selected_person}")
+    days_until_birthday, next_birthday = calculate_days_until_next_birthday(birthday)
+    st.write(f"🗓 Days until next birthday: {days_until_birthday}")
+    days_in_advance = st.number_input("🕒 Enter number of days in advance to make plans:", min_value=0, step=1, value=0)
+
+    plan_date = next_birthday - timedelta(days=days_in_advance)
+    plan_date, adjustment_message = adjust_to_nearest_saturday(plan_date)
+    df_people.at[idx, 'Plan Date'] = plan_date
+    st.session_state['df_people'] = df_people
+
+    st.markdown(f"### ✅ Plan Date: {plan_date.strftime('%B %d, %Y')}")
+    st.info(adjustment_message)
+
+def end_page(df_people):
+    st.markdown("## 📋 Birthday Planning Summary")
+    for index, row in df_people.iterrows():
+        with st.container():
+            st.markdown(f"### {row['Name']}")
+            cols = st.columns(2)
+            cols[0].markdown(f"**Relationship:** {row['Relationship']}")
+            cols[0].markdown(f"**Birth Date:** {row['Birth Date'].strftime('%B %d, %Y')}")
+            
+            if 'Plan Date' in row and not pd.isnull(row['Plan Date']):
+                days_until_next_birthday, _ = calculate_days_until_next_birthday(row['Birth Date'])
+                cols[1].markdown(f"**Days until next birthday:** {days_until_next_birthday}")
+                cols[1].markdown(f"**Planned celebration date:** {row['Plan Date'].strftime('%B %d, %Y')}")
+            else:
+                cols[1].markdown("**Birthday plan:** Not set")
+            st.markdown("---")  # Divider for readability
+
+    redo_planning = st.button("🔄 Plan or Replan Birthdays")
+    if redo_planning:
+        st.session_state.data_done = False
+
+def goodbye():
+    st.markdown("""
+    ### 🎊 Congratulations on completing your birthday party plan!
+    
+    Your party is now on track to be a memorable event, thanks to your thoughtful planning and organization. 
+
+    **What's Next?**
+    - **Invite Your Guests:** It's time to let them know about the upcoming celebration.
+    - **Finalize Details:** From the venue to the menu, ensure every aspect of your party is as perfect as you've imagined.
+    - **Enjoy Your Party:** Remember, the goal is to celebrate and create lasting memories. Have fun!
+
+    **👋 Thank you for using the Birthday Party Planner!**
+    """)
+
+def main():
+    st.title("🎂 Birthday Party Planner")
+    if 'df_people' not in st.session_state:
+        st.session_state['df_people'] = pd.DataFrame()  # Initialize in session state if not present
+    df_people = input_family_and_friends()
+
+    if st.button("➡️ Continue to make plan"):
         st.session_state.data_done = True
 
-# Step 2 & 3: Planning Process and Confirmation
-def plan_birthday():
-    if st.session_state.current_index < len(st.session_state.people):
-        person_name = list(st.session_state.people)[st.session_state.current_index]
-        person_info = st.session_state.people[person_name]
-        days_until_next_birthday, next_birthday = calculate_days_until_next_birthday(person_info["birthday"])
-        
-        st.subheader(f"Planning Birthday for {person_name}")
-        st.write(f"Relationship: {person_info['relationship']}")
-        st.write(f"Next Birthday: {next_birthday} (in {days_until_next_birthday} days)")
-        
-        days_in_advance = st.number_input("How many days in advance to plan?", min_value=0, value=30, key="advance_days")
-        initial_plan_date = next_birthday - timedelta(days=days_in_advance)
-        adjusted_plan_date, message = adjust_to_nearest_saturday(initial_plan_date)
-        st.write(f"📅 Your initially planned date is:", initial_plan_date.strftime('%A, %Y-%m-%d'))   
-        st.write(f"🔧 {message}")
-        st.write(f"📅 Your adjusted planning date is:",  adjusted_plan_date.strftime('%A, %Y-%m-%d'))
-        
-        if st.button("Confirm Planning Date"):
-            st.session_state.people[person_name]["planning_date"] = adjusted_plan_date
-            st.session_state.current_index += 1
-            
-            if st.session_state.current_index >= len(st.session_state.people):
-                st.session_state.planning_done = True
-                st.success("All birthday plans confirmed!")
-    else:
+    if st.session_state.data_done and not st.session_state['df_people'].empty:
+        planning_part(st.session_state['df_people'])
+
+    if st.button("🔚 End Planning"):
         st.session_state.planning_done = True
+        end_page(st.session_state['df_people'])  # Pass the updated dataframe   
 
-# Step 4: Summary and Review
-def show_summary():
-    st.subheader("Summary of All Birthday Plans")
-    for name, info in st.session_state.people.items():
-        birthday = info['birthday'].strftime('%Y-%m-%d')  # Format birthday here
-        planning_date = info.get("planning_date")
-        if planning_date:
-            planning_date = planning_date.strftime('%Y-%m-%d')
-        else:
-            planning_date = "Not set"
-        st.write(f"{name} ({info['relationship']}): Birthday on {birthday}, Planning Date: {planning_date}")
-    if st.button("Plan Another Birthday"):
-        # Reset for another round of planning
-        st.session_state.current_index = 0
-        st.session_state.planning_done = False
+    finish = st.button("✅ Finish and Exit")
+    if finish:
+        goodbye()
 
-
-# def main():
-#     st.title("🎉 Birthday Party Planner")
-    
-#     if not st.session_state.planning_done:
-#         data_entry()
-#         print("first satge done")
-#         plan_birthday()
-#     else:
-#         show_summary()
-def main():
-    data_entry()
-    if st.session_state.data_done:
-        plan_birthday()
-    if st.session_state.planning_done:
-        show_summary()
-
-main()
+if __name__ == "__main__":
+    main()
